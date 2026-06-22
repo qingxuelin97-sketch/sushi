@@ -1,0 +1,225 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-commons-green: #2D3E2F;
+    --color-commons-light: #3D5340;
+    --color-lords-red: #6B1C23;
+    --color-gold: #C8A13A;
+    --color-gold-light: #E6C86E;
+    --color-gold-dark: #9A7B28;
+    --color-wood: #4A332A;
+    --color-parchment: #F3EFE4;
+    --color-parchment-dark: #E6DFCE;
+    --color-ink: #1A1714;
+    --color-ink-muted: #6B6459;
+
+    font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    line-height: 1.6;
+    font-weight: 500;
+    font-size: 17px;
+
+    color: var(--color-ink);
+    background-color: var(--color-parchment);
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Playfair Display", Georgia, serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+  }
+
+  h2 {
+    font-size: 1.875rem;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+  }
+
+  h4 {
+    font-size: 1.25rem;
+  }
+
+  h5, h6 {
+    font-size: 1.1rem;
+  }
+
+  ::selection {
+    background-color: rgba(200, 161, 58, 0.35);
+    color: var(--color-ink);
+  }
+}
+
+@layer components {
+  .font-inscription {
+    font-family: "Cinzel", serif;
+  }
+
+  .font-display {
+    font-family: "Playfair Display", serif;
+  }
+
+  .font-body {
+    font-family: "Cormorant Garamond", serif;
+  }
+
+  .font-mono {
+    font-family: "Source Code Pro", monospace;
+  }
+
+  /* British brass button */
+  .btn-brass {
+    @apply relative inline-flex items-center justify-center gap-2 px-5 py-2.5;
+    @apply font-inscription text-sm font-semibold tracking-widest uppercase;
+    @apply text-ink bg-gradient-to-b from-gold-light via-gold to-gold-dark;
+    @apply border-2 border-gold-dark rounded-sm;
+    @apply shadow-brass transition-all duration-200;
+    @apply hover:brightness-110 hover:shadow-glow active:translate-y-px;
+  }
+
+  .btn-brass::before {
+    content: "";
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent;
+    background-size: 200% 100%;
+    @apply opacity-0 hover:opacity-100 animate-shimmer;
+  }
+
+  .btn-commons {
+    @apply relative inline-flex items-center justify-center gap-2 px-5 py-2.5;
+    @apply font-inscription text-sm font-semibold tracking-widest uppercase;
+    @apply text-parchment bg-gradient-to-b from-commons-light to-commons-green;
+    @apply border-2 border-commons-dark rounded-sm;
+    @apply shadow-md transition-all duration-200;
+    @apply hover:brightness-110 active:translate-y-px;
+  }
+
+  .btn-lords {
+    @apply relative inline-flex items-center justify-center gap-2 px-5 py-2.5;
+    @apply font-inscription text-sm font-semibold tracking-widest uppercase;
+    @apply text-parchment bg-gradient-to-b from-lords-light to-lords-red;
+    @apply border-2 border-lords-dark rounded-sm;
+    @apply shadow-md transition-all duration-200;
+    @apply hover:brightness-110 active:translate-y-px;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2;
+    @apply font-inscription text-xs font-semibold tracking-wider uppercase;
+    @apply text-ink/80 bg-transparent border border-ink/20 rounded-sm;
+    @apply transition-all duration-200;
+    @apply hover:bg-ink/5 hover:border-ink/40 active:translate-y-px;
+  }
+
+  /* Parchment card */
+  .card-parchment {
+    @apply relative bg-parchment bg-paper-texture;
+    @apply border border-ink/10 rounded-sm shadow-parchment;
+    @apply overflow-hidden;
+  }
+
+  .card-parchment::before {
+    content: "";
+    @apply pointer-events-none absolute inset-0 opacity-40;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+
+  /* Ornate divider */
+  .divider-ornate {
+    @apply flex items-center gap-4 text-gold/60;
+  }
+
+  .divider-ornate::before,
+  .divider-ornate::after {
+    content: "";
+    @apply flex-1 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent;
+  }
+
+  /* Drop cap for Hansard */
+  .drop-cap::first-letter {
+    @apply float-left mr-2 mt-1 font-display text-5xl font-bold leading-none text-commons-green;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-parchment-dark);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-gold-dark);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gold);
+  }
+
+  /* Grain overlay */
+  .grain-overlay {
+    @apply pointer-events-none fixed inset-0 z-50 opacity-[0.035];
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+
+  /* Vignette */
+  .vignette {
+    @apply pointer-events-none fixed inset-0 z-40;
+    background: radial-gradient(ellipse at center, transparent 0%, transparent 60%, rgba(26,23,20,0.18) 100%);
+  }
+
+  /* Gothic window silhouette */
+  .gothic-window {
+    clip-path: polygon(
+      50% 0%,
+      85% 25%,
+      100% 50%,
+      100% 100%,
+      0% 100%,
+      0% 50%,
+      15% 25%
+    );
+  }
+}
+
+@layer utilities {
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  }
+
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+  }
+
+  .border-brass {
+    border-image: linear-gradient(135deg, #E6C86E, #9A7B28, #E6C86E) 1;
+  }
+}
