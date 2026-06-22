@@ -1,7 +1,44 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { Crown, Users, Scale, FileText } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
+import { Crown, Users, Scale, FileText, Activity, TrendingUp } from "lucide-react";
 import { useSessionStore } from "@/store/sessionStore";
 import PageHeader from "@/components/PageHeader";
+import CountUp from "@/components/CountUp";
+
+function Gauge({ value, label }: { value: number; label: string }) {
+  const clamped = Math.max(-100, Math.min(100, value));
+  const angle = (clamped / 100) * 90; // -90 to +90
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-32 h-16 overflow-hidden">
+        <div className="absolute inset-0 rounded-t-full bg-gradient-to-r from-lords-red via-gold to-commons-green opacity-80" />
+        <motion.div
+          initial={{ rotate: -90 }}
+          animate={{ rotate: angle }}
+          transition={{ type: "spring", stiffness: 60, damping: 12 }}
+          className="absolute bottom-0 left-1/2 w-1 h-14 bg-ink origin-bottom -translate-x-1/2"
+          style={{ borderRadius: "999px" }}
+        />
+        <div className="absolute bottom-0 left-1/2 w-3 h-3 bg-ink rounded-full -translate-x-1/2 translate-y-1/2" />
+      </div>
+      <div className="font-inscription text-[10px] uppercase tracking-widest text-ink-muted mt-1">
+        {label}
+      </div>
+      <div className="font-mono text-lg font-bold">{clamped > 0 ? `+${clamped}` : clamped}</div>
+    </div>
+  );
+}
 
 export default function Analytics() {
   const session = useSessionStore((s) => s.session);
@@ -31,6 +68,16 @@ export default function Analytics() {
 
   const passedCount = session.motions.filter((m) => m.vote?.passed).length;
   const totalVotes = session.motions.filter((m) => m.vote).length;
+  const attendance = Math.round(
+    (session.members.filter((m) => m.isPresent).length / session.members.length) * 100
+  );
+
+  const kpi = [
+    { icon: Users, label: "议员总数", value: session.members.length },
+    { icon: Crown, label: "政党数量", value: session.parties.length },
+    { icon: Scale, label: "议案通过率", value: totalVotes > 0 ? Math.round((passedCount / totalVotes) * 100) : 0, suffix: "%" },
+    { icon: FileText, label: "议事录条目", value: session.hansard.length },
+  ];
 
   return (
     <div>
@@ -38,51 +85,76 @@ export default function Analytics() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="card-parchment p-4">
-          <Users className="w-5 h-5 text-commons-green mb-2" />
-          <div className="font-mono text-2xl font-bold">{session.members.length}</div>
-          <div className="font-inscription text-[10px] text-ink-muted uppercase tracking-wider">
-            议员总数
-          </div>
-        </div>
-        <div className="card-parchment p-4">
-          <Crown className="w-5 h-5 text-gold mb-2" />
-          <div className="font-mono text-2xl font-bold">{session.parties.length}</div>
-          <div className="font-inscription text-[10px] text-ink-muted uppercase tracking-wider">
-            政党数量
-          </div>
-        </div>
-        <div className="card-parchment p-4">
-          <Scale className="w-5 h-5 text-lords-red mb-2" />
-          <div className="font-mono text-2xl font-bold">
-            {totalVotes > 0 ? Math.round((passedCount / totalVotes) * 100) : 0}%
-          </div>
-          <div className="font-inscription text-[10px] text-ink-muted uppercase tracking-wider">
-            议案通过率
-          </div>
-        </div>
-        <div className="card-parchment p-4">
-          <FileText className="w-5 h-5 text-ink-muted mb-2" />
-          <div className="font-mono text-2xl font-bold">{session.hansard.length}</div>
-          <div className="font-inscription text-[10px] text-ink-muted uppercase tracking-wider">
-            议事录条目
-          </div>
-        </div>
+        {kpi.map((item, i) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08 }}
+            whileHover={{ y: -4 }}
+            className="card-parchment p-4"
+          >
+            <item.icon className="w-5 h-5 text-gold-dark mb-2" />
+            <div className="font-mono text-2xl font-bold">
+              <CountUp target={item.value} />
+              {item.suffix || ""}
+            </div>
+            <div className="font-inscription text-[10px] text-ink-muted uppercase tracking-wider">
+              {item.label}
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Public opinion + attendance */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card-parchment p-5 lg:col-span-1 flex flex-col items-center justify-center gap-6"
+        >
+          <Gauge value={session.publicOpinion} label="公众舆论" />
+          <div className="w-full space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-1.5 text-ink-muted">
+                <Activity className="w-4 h-4" /> 出席率
+              </span>
+              <span className="font-mono font-bold">{attendance}%</span>
+            </div>
+            <div className="w-full h-2 bg-ink/10 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${attendance}%` }}
+                transition={{ duration: 1 }}
+                className="h-full bg-gradient-to-r from-gold to-commons-green"
+              />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-1.5 text-ink-muted">
+                <TrendingUp className="w-4 h-4" /> 已表决议案
+              </span>
+              <span className="font-mono font-bold">{totalVotes}</span>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Seat distribution */}
-        <div className="card-parchment p-5">
-          <h3 className="font-display font-bold mb-4">席位分布</h3>
-          <div className="h-64">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="card-parchment p-5 lg:col-span-1"
+        >
+          <h3 className="font-display font-bold mb-2">席位分布</h3>
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={seatData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
+                  innerRadius={55}
+                  outerRadius={85}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -109,13 +181,18 @@ export default function Analytics() {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Vote history */}
-        <div className="card-parchment p-5">
-          <h3 className="font-display font-bold mb-4">表决历史</h3>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="card-parchment p-5 lg:col-span-1"
+        >
+          <h3 className="font-display font-bold mb-2">表决历史</h3>
           {voteData.length > 0 ? (
-            <div className="h-64">
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={voteData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(26,23,20,0.1)" />
@@ -136,15 +213,20 @@ export default function Analytics() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-64 flex items-center justify-center text-ink-muted">
+            <div className="h-56 flex items-center justify-center text-ink-muted">
               <p className="font-body">暂无表决记录</p>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* Party standings table */}
-      <div className="card-parchment p-5 mt-6">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="card-parchment p-5"
+      >
         <h3 className="font-display font-bold mb-4">政党概览</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -199,7 +281,7 @@ export default function Analytics() {
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

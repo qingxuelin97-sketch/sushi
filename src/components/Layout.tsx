@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Gavel,
   Users,
@@ -10,6 +11,7 @@ import {
   BarChart3,
   BookOpen,
   Home,
+  Clock,
 } from "lucide-react";
 import { useSessionStore } from "@/store/sessionStore";
 import Crest from "./Crest";
@@ -26,9 +28,25 @@ const navItems = [
   { path: "/rules", label: "规则", icon: BookOpen },
 ];
 
+function SessionClock() {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="hidden md:flex items-center gap-2 text-parchment/80 font-mono text-sm">
+      <Clock className="w-3.5 h-3.5 text-gold-pale" />
+      <span>{time.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+    </div>
+  );
+}
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const session = useSessionStore((s) => s.session);
+  const activeMotionId = useSessionStore((s) => s.activeMotionId);
+  const activeMotion = session?.motions.find((m) => m.id === activeMotionId);
 
   return (
     <div className="min-h-screen bg-parchment text-ink font-body relative">
@@ -52,6 +70,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {session && (
             <div className="hidden md:flex items-center gap-6 text-parchment/90">
+              <SessionClock />
+              <div className="h-8 w-px bg-gold-dark/50" />
               <div className="flex flex-col items-end">
                 <span className="font-inscription text-xs tracking-widest text-gold-pale">
                   {session.year}
@@ -84,13 +104,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   key={item.path}
                   to={item.path}
                   className={[
-                    "flex items-center gap-3 px-4 py-3 rounded-sm transition-all duration-200",
+                    "flex items-center gap-3 px-4 py-3 rounded-sm transition-all duration-200 relative overflow-hidden",
                     "font-inscription text-sm tracking-wider uppercase",
                     active
                       ? "bg-commons-green text-parchment shadow-md"
                       : "text-ink/70 hover:bg-ink/5 hover:text-ink",
                   ].join(" ")}
                 >
+                  {active && (
+                    <motion.div
+                      layoutId="activeNav"
+                      className="absolute inset-0 bg-commons-green -z-10"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
                   <Icon className="w-4 h-4" />
                   {item.label}
                 </Link>
@@ -98,17 +125,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             })}
           </div>
 
-          {session && (
-            <div className="mt-6 mx-4 p-4 card-parchment">
-              <h4 className="font-inscription text-xs text-ink-muted tracking-widest uppercase mb-2">
-                当前议程
-              </h4>
-              <p className="font-display text-sm font-semibold line-clamp-2">
-                {session.motions.find((m) => m.id === session.motions[session.motions.length - 1]?.id)
-                  ?.title || "暂无议题"}
-              </p>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {session && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mt-6 mx-4 p-4 card-parchment"
+              >
+                <h4 className="font-inscription text-xs text-ink-muted tracking-widest uppercase mb-2">
+                  当前议程
+                </h4>
+                <p className="font-display text-sm font-semibold line-clamp-2">
+                  {activeMotion?.title || "暂无活跃议题"}
+                </p>
+                {activeMotion && (
+                  <p className="font-body text-xs text-ink-muted mt-1 line-clamp-2">
+                    {activeMotion.description}
+                  </p>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </nav>
 
         {/* Mobile bottom nav */}

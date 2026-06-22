@@ -1,15 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Crown, Scroll, Landmark, ArrowRight, RotateCcw } from "lucide-react";
+import { Crown, Scroll, Landmark, ArrowRight, RotateCcw, Sparkles } from "lucide-react";
 import { useSessionStore } from "@/store/sessionStore";
 import Crest from "@/components/Crest";
 import OrnateDivider from "@/components/OrnateDivider";
 
+const PRESET_NAMES = [
+  "联合王国第 59 届议会模拟",
+  "维多利亚时代下议院",
+  "战后重建议会",
+  "脱欧危机特别会期",
+];
+
 export default function Home() {
   const navigate = useNavigate();
   const { session, createSession, resetSession } = useSessionStore();
-  const [name, setName] = useState("联合王国第 59 届议会模拟");
+  const [name, setName] = useState(PRESET_NAMES[0]);
   const [year, setYear] = useState(new Date().getFullYear());
   const [isCreating, setIsCreating] = useState(false);
 
@@ -18,7 +25,7 @@ export default function Home() {
     setTimeout(() => {
       createSession(name, year);
       navigate("/chamber");
-    }, 1200);
+    }, 1600);
   };
 
   const handleContinue = () => {
@@ -34,32 +41,38 @@ export default function Home() {
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center py-12">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8 }}
-        className="w-full max-w-2xl"
+        transition={{ duration: 0.9 }}
+        className="w-full max-w-3xl"
       >
-        <div className="card-parchment p-8 lg:p-12 relative">
+        <div className="card-parchment p-8 lg:p-14 relative">
           {/* Corner ornaments */}
-          <div className="absolute top-3 left-3 w-8 h-8 border-t-2 border-l-2 border-gold-dark/40" />
-          <div className="absolute top-3 right-3 w-8 h-8 border-t-2 border-r-2 border-gold-dark/40" />
-          <div className="absolute bottom-3 left-3 w-8 h-8 border-b-2 border-l-2 border-gold-dark/40" />
-          <div className="absolute bottom-3 right-3 w-8 h-8 border-b-2 border-r-2 border-gold-dark/40" />
+          <div className="absolute top-3 left-3 w-10 h-10 border-t-2 border-l-2 border-gold-dark/40" />
+          <div className="absolute top-3 right-3 w-10 h-10 border-t-2 border-r-2 border-gold-dark/40" />
+          <div className="absolute bottom-3 left-3 w-10 h-10 border-b-2 border-l-2 border-gold-dark/40" />
+          <div className="absolute bottom-3 right-3 w-10 h-10 border-b-2 border-r-2 border-gold-dark/40" />
 
           <div className="flex flex-col items-center text-center">
             <motion.div
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
+              initial={{ y: -30, opacity: 0, rotate: -6 }}
+              animate={{ y: 0, opacity: 1, rotate: 0 }}
+              transition={{ delay: 0.2, duration: 1, type: "spring" }}
+              className="relative"
             >
-              <Crest className="w-32 h-auto mx-auto mb-6 drop-shadow-xl" />
+              <Crest className="w-36 h-auto mx-auto mb-6 drop-shadow-2xl" />
+              <motion.div
+                animate={{ opacity: [0.4, 0.8, 0.4] }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className="absolute inset-0 blur-2xl bg-gold/20 rounded-full -z-10"
+              />
             </motion.div>
 
             <motion.h1
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="font-display text-4xl lg:text-5xl font-bold text-ink mb-2"
+              className="font-display text-4xl lg:text-6xl font-bold text-ink mb-2"
             >
               议会模拟器
             </motion.h1>
@@ -67,7 +80,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
-              className="font-inscription text-gold-dark tracking-[0.3em] uppercase text-sm"
+              className="font-inscription text-gold-dark tracking-[0.35em] uppercase text-sm"
             >
               Parliament Simulator
             </motion.p>
@@ -78,7 +91,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="font-body text-lg text-ink-muted max-w-md mb-8"
+              className="font-body text-lg text-ink-muted max-w-lg mb-8"
             >
               创建你的威斯敏斯特式议会，管理政党与议员，主持辩论，发起分组表决，并生成汉萨德议事录。
             </motion.p>
@@ -89,12 +102,12 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full space-y-4"
               >
-                <div className="bg-commons-green/5 border border-commons-green/20 rounded-sm p-4 text-left">
+                <div className="bg-commons-green/5 border border-commons-green/20 rounded-sm p-5 text-left">
                   <div className="flex items-center gap-2 text-commons-green font-inscription text-xs tracking-widest uppercase mb-1">
                     <Landmark className="w-4 h-4" />
                     当前会话
                   </div>
-                  <p className="font-display text-xl font-bold">{session.name}</p>
+                  <p className="font-display text-2xl font-bold">{session.name}</p>
                   <p className="font-body text-ink-muted text-sm">
                     {session.year} · {session.members.length} 名议员 ·{" "}
                     {session.parties.length} 个政党
@@ -132,6 +145,18 @@ export default function Home() {
                       className="w-full bg-parchment-light border border-ink/20 rounded-sm px-4 py-2.5 font-body text-ink focus:outline-none focus:border-gold-dark focus:ring-1 focus:ring-gold-dark"
                       placeholder="输入议会名称"
                     />
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {PRESET_NAMES.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setName(preset)}
+                          className="text-[10px] font-inscription px-2 py-1 bg-ink/5 text-ink-muted rounded-sm hover:bg-gold/10 hover:text-gold-dark transition-colors"
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="block font-inscription text-xs tracking-widest uppercase text-ink-muted mb-2">
@@ -154,7 +179,10 @@ export default function Home() {
                   className="btn-brass w-full"
                 >
                   {isCreating ? (
-                    <span className="animate-pulse">正在召开议会...</span>
+                    <span className="animate-pulse flex items-center justify-center gap-2">
+                      <Sparkles className="w-4 h-4 animate-spin" />
+                      正在召开议会...
+                    </span>
                   ) : (
                     <>
                       召开议会
@@ -164,7 +192,7 @@ export default function Home() {
                 </button>
 
                 <p className="font-body text-sm text-ink-muted">
-                  系统将自动生成议长、政党和 100 名议员。
+                  系统将自动生成议长、政党和 100 名议员，并依据英式威斯敏斯特布局排布议席。
                 </p>
               </motion.div>
             )}

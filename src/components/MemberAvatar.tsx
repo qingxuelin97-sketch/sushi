@@ -10,9 +10,9 @@ interface MemberAvatarProps {
 }
 
 const sizeMap = {
-  sm: "w-8 h-8",
-  md: "w-12 h-12",
-  lg: "w-16 h-16",
+  sm: "w-7 h-7",
+  md: "w-11 h-11",
+  lg: "w-14 h-14",
 };
 
 export default function MemberAvatar({
@@ -30,10 +30,10 @@ export default function MemberAvatar({
       className={[
         "relative rounded-full overflow-hidden border-2 transition-all duration-200",
         sizeMap[size],
-        isActive ? "ring-2 ring-gold ring-offset-2 ring-offset-parchment scale-110" : "",
-        isSpeaking ? "shadow-glow animate-pulse" : "",
-        onClick ? "cursor-pointer hover:scale-105" : "",
-        member.isPresent ? "" : "opacity-40 grayscale",
+        isActive ? "ring-2 ring-gold scale-110 z-10" : "",
+        isSpeaking ? "shadow-[0_0_18px_rgba(230,200,110,0.65)] animate-pulse z-20" : "",
+        onClick ? "cursor-pointer hover:scale-110 hover:brightness-110" : "",
+        member.isPresent ? "" : "opacity-45 grayscale",
       ].join(" ")}
       style={{ borderColor: party?.color || "#9CA3AF" }}
       title={`${member.name} (${party?.abbreviation || "Ind"})`}
@@ -45,7 +45,12 @@ export default function MemberAvatar({
         loading="lazy"
       />
       {isSpeaking && (
-        <span className="absolute inset-0 rounded-full border-2 border-gold-light animate-ping opacity-60" />
+        <span className="absolute inset-0 rounded-full border-2 border-gold-light animate-ping opacity-50" />
+      )}
+      {!member.isPresent && (
+        <span className="absolute inset-0 flex items-center justify-center bg-ink/30">
+          <span className="w-1.5 h-1.5 rounded-full bg-ink/60" />
+        </span>
       )}
     </button>
   );
