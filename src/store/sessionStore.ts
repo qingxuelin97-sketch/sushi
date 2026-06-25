@@ -21,13 +21,19 @@ import {
   triggerRandomEvent,
   applyEventImpacts,
   generateId,
+  generateSpeechContent,
+  generateRuling,
 } from "@/utils/helpers";
+
+export type DebatePhase = "opening" | "arguments" | "rebuttal" | "closing" | "vote";
 
 interface SessionState {
   session: Session | null;
   activeMotionId: string | null;
   speechQueue: SpeechQueueItem[];
   division: DivisionState;
+  debatePhase: DebatePhase;
+  lastSpeechAt: number | null;
 
   // Session lifecycle
   createSession: (name: string, year: number) => void;
@@ -53,6 +59,10 @@ interface SessionState {
   removeFromQueue: (memberId: string) => void;
   reorderQueue: (memberIds: string[]) => void;
   addRuling: (content: string) => void;
+  setDebatePhase: (phase: DebatePhase) => void;
+  advanceDebatePhase: () => void;
+  autoDebate: () => void;
+  callDivision: () => void;
 
   // Division
   startDivision: (motionId: string) => void;
@@ -88,18 +98,20 @@ export const useSessionStore = create<SessionState>()(
       activeMotionId: null,
       speechQueue: [],
       division: initialDivision,
+      debatePhase: "opening",
+      lastSpeechAt: null,
 
       createSession: (name, year) => {
         const session = createDefaultSession(name, year);
-        set({ session, activeMotionId: null, speechQueue: [], division: initialDivision });
+        set({ session, activeMotionId: null, speechQueue: [], division: initialDivision, debatePhase: "opening", lastSpeechAt: null });
       },
 
       loadSession: (session) => {
-        set({ session, activeMotionId: null, speechQueue: [], division: initialDivision });
+        set({ session, activeMotionId: null, speechQueue: [], division: initialDivision, debatePhase: "opening", lastSpeechAt: null });
       },
 
       resetSession: () => {
-        set({ session: null, activeMotionId: null, speechQueue: [], division: initialDivision });
+        set({ session: null, activeMotionId: null, speechQueue: [], division: initialDivision, debatePhase: "opening", lastSpeechAt: null });
       },
 
       updateSession: (updates) => {
@@ -309,6 +321,92 @@ export const useSessionStore = create<SessionState>()(
           actorName: session.speaker.name,
           actorTitle: "议长",
         });
+      },
+
+      setDebatePhase: (phase) => set({ debatePhase: phase }),
+
+      advanceDebatePhase: () => {
+        const { debatePhase } = get();
+        const order: DebatePhase[] = ["opening", "arguments", "rebuttal", "closing", "vote"];
+        const idx = order.indexOf(debatePhase);
+        const next = order[Math.min(idx + 1, order.length - 1)];
+        set({ debatePhase: next });
+      },
+
+      autoDebate: () => {
+        const { session, activeMotionId, debatePhase, addSpeech, addRuling } = get();
+        if (!session || !activeMotionId) return;
+
+        const motion = session.motions.find((m) => m.id === activeMotionId);
+        if (!motion) return;
+
+        // Pick speakers: one from government, one from opposition, alternating
+        const govParties = session.parties.filter((p) => p.isGovernment);
+        const oppParties = session.parties.filter((p) => !p.isGovernment);
+        const govMembers = session.members.filter(
+          (m) => m.isPresent && govParties.some((p) => p.id === m.partyId)
+        );
+        const oppMembers = session.members.filter(
+          (m) => m.isPresent && oppParties.some((p) => p.id === m.partyId)
+        );
+
+        // Sort by eloquence for better speeches
+        const topGov = [...govMembers].sort((a, b) => b.eloquence - a.eloquence).slice(0, 5);
+        const topOpp = [...oppMembers].sort((a, b) => b.eloquence - a.eloquence).slice(0, 5);
+
+        const speechesPerPhase: Record<DebatePhase, number> = {
+          opening: 2,
+          arguments: 4,
+          rebuttal: 4,
+          closing: 2,
+          vote: 0,
+        };
+
+        const count = speechesPerPhase[debatePhase] || 2;
+        for (let i = 0; i < count; i++) {
+          const isGov = i % 2 === 0;
+          const pool = isGov ? topGov : topOpp;
+          const member = pool[i % pool.length];
+          if (!member) continue;
+          const party = session.parties.find((p) => p.id === member.partyId);
+          if (!party) continue;
+          const content = generateSpeechContent(member, party);
+          addSpeech(motion.id, member.id, content);
+        }
+
+        // Occasionally add a ruling
+        if (Math.random() < 0.3) {
+          addRuling(generateRuling());
+        }
+
+        // Impact on public opinion based on debate quality
+        const avgEloquence =
+          [topGov[0], topOpp[0]].filter(Boolean).reduce((s, m) => s + (m?.eloquence || 0), 0) / 2;
+        const opinionDelta = Math.round((avgEloquence - 60) / 10);
+        if (opinionDelta !== 0) {
+          const { session: s, updateSession } = get();
+          if (s) {
+            updateSession({
+              publicOpinion: Math.max(0, Math.min(100, s.publicOpinion + opinionDelta)),
+            });
+          }
+        }
+
+        set({ lastSpeechAt: Date.now() });
+      },
+
+      callDivision: () => {
+        const { session, activeMotionId, updateMotion, startDivision, addHansardEntry } = get();
+        if (!session || !activeMotionId) return;
+        updateMotion(activeMotionId, { status: "voting" });
+        addHansardEntry({
+          type: "ruling",
+          content: "议长宣布辩论结束，本院进入分组表决。",
+          actorName: session.speaker.name,
+          actorTitle: "议长",
+        });
+        startDivision(activeMotionId);
+        set({ debatePhase: "vote" });
       },
 
       startDivision: (motionId) => {

@@ -1,18 +1,29 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Gavel, Mic, Users, Clock, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Gavel, Mic, Users, Clock, AlertCircle, TrendingUp } from "lucide-react";
 import { useSessionStore } from "@/store/sessionStore";
+import type { DebatePhase } from "@/store/sessionStore";
 import PageHeader from "@/components/PageHeader";
 import ChamberMap from "@/components/ChamberMap";
 import MemberAvatar from "@/components/MemberAvatar";
 import Timer from "@/components/Timer";
 import Mace from "@/components/Mace";
+import { formatShortTime } from "@/utils/helpers";
 import type { Member } from "@/types";
+
+const PHASE_LABELS: Record<DebatePhase, string> = {
+  opening: "开场陈述",
+  arguments: "主辩论",
+  rebuttal: "反驳阶段",
+  closing: "总结陈词",
+  vote: "进入表决",
+};
 
 export default function Chamber() {
   const session = useSessionStore((s) => s.session);
   const speechQueue = useSessionStore((s) => s.speechQueue);
   const activeMotionId = useSessionStore((s) => s.activeMotionId);
+  const debatePhase = useSessionStore((s) => s.debatePhase);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   if (!session) {
@@ -31,13 +42,22 @@ export default function Chamber() {
     ? session.parties.find((p) => p.id === currentSpeaker.partyId)
     : null;
 
+  // Latest speech
+  const latestSpeech = activeMotion?.speeches[activeMotion.speeches.length - 1];
+  const latestMember = latestSpeech
+    ? session.members.find((m) => m.id === latestSpeech.memberId)
+    : null;
+  const latestParty = latestMember
+    ? session.parties.find((p) => p.id === latestMember.partyId)
+    : null;
+
+  const presentCount = session.members.filter((m) => m.isPresent).length;
+  const govSeats = session.parties.filter((p) => p.isGovernment).reduce((s, p) => s + p.seats, 0);
+  const oppSeats = session.parties.filter((p) => !p.isGovernment).reduce((s, p) => s + p.seats, 0);
+
   return (
     <div>
-      <PageHeader
-        title="议事厅"
-        subtitle="The Chamber"
-        ornament="Order · Order"
-      />
+      <PageHeader title="议事厅" subtitle="The Chamber" ornament="Order · Order" />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Chamber map */}
@@ -52,9 +72,21 @@ export default function Chamber() {
           {/* Current motion bar */}
           <div className="card-parchment p-4">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="font-inscription text-xs tracking-widest uppercase text-ink-muted mb-1">
-                  当前议题
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="font-inscription text-xs tracking-widest uppercase text-ink-muted">
+                    当前议题
+                  </div>
+                  {activeMotion?.status === "debating" && (
+                    <span className="font-inscription text-[10px] px-2 py-0.5 bg-gold/20 text-gold-dark rounded-sm uppercase">
+                      {PHASE_LABELS[debatePhase]}
+                    </span>
+                  )}
+                  {activeMotion?.status === "voting" && (
+                    <span className="font-inscription text-[10px] px-2 py-0.5 bg-lords-red text-parchment rounded-sm uppercase animate-pulse">
+                      表决中
+                    </span>
+                  )}
                 </div>
                 <h3 className="font-display text-xl font-bold">
                   {activeMotion?.title || "暂无活跃议题"}
@@ -63,11 +95,39 @@ export default function Chamber() {
                   {activeMotion?.description || "请在议程页面添加或选择一个议题。"}
                 </p>
               </div>
-              <div className="hidden sm:block">
+              <div className="hidden sm:block flex-shrink-0">
                 <Mace className="h-16 w-auto opacity-80" />
               </div>
             </div>
           </div>
+
+          {/* Latest speech preview */}
+          {latestSpeech && latestMember && (
+            <motion.div
+              key={latestSpeech.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card-parchment p-4 border-l-4 border-gold"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <MemberAvatar member={latestMember} party={latestParty} size="sm" />
+                <div className="flex-1">
+                  <span className="font-display font-bold text-sm">{latestMember.name}</span>
+                  <span
+                    className="font-inscription text-[9px] px-1.5 py-0.5 rounded-sm uppercase ml-2"
+                    style={{ backgroundColor: latestParty?.color + "20", color: latestParty?.color }}
+                  >
+                    {latestParty?.abbreviation}
+                  </span>
+                </div>
+                <span className="font-inscription text-[10px] text-ink-muted flex items-center gap-1">
+                  <Clock className="w-2.5 h-2.5" />
+                  {formatShortTime(latestSpeech.timestamp)}
+                </span>
+              </div>
+              <p className="font-body text-sm text-ink/90 line-clamp-3">{latestSpeech.content}</p>
+            </motion.div>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -84,19 +144,15 @@ export default function Chamber() {
                 <div className="font-inscription text-xs tracking-widest uppercase text-gold-dark">
                   The Speaker
                 </div>
-                <div className="font-display text-xl font-bold">
-                  {session.speaker.name}
-                </div>
-                <div className="font-body text-sm text-ink-muted">
-                  {session.speaker.title}
-                </div>
+                <div className="font-display text-xl font-bold">{session.speaker.name}</div>
+                <div className="font-body text-sm text-ink-muted">{session.speaker.title}</div>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-commons-green/5 p-2 rounded-sm">
                 <Users className="w-4 h-4 mx-auto text-commons-green mb-1" />
-                <div className="font-mono text-lg font-bold">{session.members.length}</div>
-                <div className="font-inscription text-[10px] text-ink-muted">议员</div>
+                <div className="font-mono text-lg font-bold">{presentCount}</div>
+                <div className="font-inscription text-[10px] text-ink-muted">出席</div>
               </div>
               <div className="bg-commons-green/5 p-2 rounded-sm">
                 <Mic className="w-4 h-4 mx-auto text-commons-green mb-1" />
@@ -111,104 +167,189 @@ export default function Chamber() {
             </div>
           </div>
 
+          {/* Seat balance */}
+          <div className="card-parchment p-4">
+            <div className="font-inscription text-xs tracking-widest uppercase text-ink-muted mb-3">
+              席位对比
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex-1 text-right">
+                <div className="font-mono text-lg font-bold text-lords-red">{oppSeats}</div>
+                <div className="font-inscription text-[9px] text-ink-muted uppercase">反对派</div>
+              </div>
+              <div className="w-full h-6 flex rounded-sm overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(oppSeats / (govSeats + oppSeats)) * 100}%` }}
+                  className="bg-lords-red/70"
+                />
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(govSeats / (govSeats + oppSeats)) * 100}%` }}
+                  className="bg-commons-green/70"
+                />
+              </div>
+              <div className="flex-1">
+                <div className="font-mono text-lg font-bold text-commons-green">{govSeats}</div>
+                <div className="font-inscription text-[9px] text-ink-muted uppercase">执政党</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1 mt-2">
+              {session.parties.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm"
+                  style={{ backgroundColor: p.color + "15" }}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                  <span className="font-inscription text-[9px] uppercase">{p.abbreviation}</span>
+                  <span className="font-mono text-[9px]">{p.seats}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Public opinion */}
+          <div className="card-parchment p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-inscription text-xs tracking-widest uppercase text-ink-muted flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" />
+                公众舆论
+              </div>
+              <span
+                className={[
+                  "font-mono text-lg font-bold",
+                  session.publicOpinion > 60
+                    ? "text-commons-green"
+                    : session.publicOpinion < 40
+                    ? "text-lords-red"
+                    : "text-gold-dark",
+                ].join(" ")}
+              >
+                {session.publicOpinion}%
+              </span>
+            </div>
+            <div className="w-full h-2 bg-ink/10 rounded-full overflow-hidden">
+              <motion.div
+                animate={{ width: `${session.publicOpinion}%` }}
+                transition={{ type: "spring", stiffness: 60 }}
+                className={[
+                  "h-full rounded-full",
+                  session.publicOpinion > 60
+                    ? "bg-commons-green"
+                    : session.publicOpinion < 40
+                    ? "bg-lords-red"
+                    : "bg-gold",
+                ].join(" ")}
+              />
+            </div>
+          </div>
+
           {/* Current speaker */}
           <div className="card-parchment p-5">
             <div className="font-inscription text-xs tracking-widest uppercase text-ink-muted mb-3 flex items-center gap-2">
               <Mic className="w-3 h-3" />
               当前发言人
             </div>
-            {currentSpeaker ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center gap-3"
-              >
-                <MemberAvatar
-                  member={currentSpeaker}
-                  party={currentParty}
-                  size="md"
-                  isSpeaking
-                />
-                <div className="flex-1">
-                  <div className="font-display font-bold">{currentSpeaker.name}</div>
-                  <div className="font-body text-sm text-ink-muted">
-                    {currentParty?.name} · {currentSpeaker.constituency}
+            <AnimatePresence mode="wait">
+              {currentSpeaker ? (
+                <motion.div
+                  key={currentSpeaker.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="flex items-center gap-3"
+                >
+                  <MemberAvatar member={currentSpeaker} party={currentParty} size="md" isSpeaking />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-display font-bold truncate">{currentSpeaker.name}</div>
+                    <div className="font-body text-sm text-ink-muted truncate">
+                      {currentParty?.name} · {currentSpeaker.constituency}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 text-commons-green">
-                  <Clock className="w-4 h-4" />
-                  <Timer seconds={180} isRunning />
-                </div>
-              </motion.div>
-            ) : (
-              <div className="flex items-center gap-3 text-ink-muted">
-                <AlertCircle className="w-5 h-5" />
-                <span className="font-body">暂无议员发言</span>
-              </div>
-            )}
+                  <div className="flex items-center gap-1 text-commons-green">
+                    <Clock className="w-4 h-4" />
+                    <Timer seconds={180} isRunning />
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-3 text-ink-muted"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  <span className="font-body">暂无议员发言</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Member detail */}
-          {selectedMember && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="card-parchment p-5"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <MemberAvatar
-                  member={selectedMember}
-                  party={session.parties.find((p) => p.id === selectedMember.partyId)}
-                  size="lg"
-                />
-                <div>
-                  <div className="font-display text-lg font-bold">
-                    {selectedMember.name}
-                  </div>
-                  <div className="font-body text-sm text-ink-muted">
-                    {session.parties.find((p) => p.id === selectedMember.partyId)?.name} ·{" "}
-                    {selectedMember.constituency}
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="font-inscription text-xs uppercase tracking-wider text-ink-muted">
-                    口才
-                  </span>
-                  <span className="font-mono">{selectedMember.eloquence}</span>
-                </div>
-                <div className="w-full bg-ink/10 rounded-full h-1.5">
-                  <div
-                    className="bg-gold h-1.5 rounded-full"
-                    style={{ width: `${selectedMember.eloquence}%` }}
+          <AnimatePresence>
+            {selectedMember && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="card-parchment p-5"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <MemberAvatar
+                    member={selectedMember}
+                    party={session.parties.find((p) => p.id === selectedMember.partyId)}
+                    size="lg"
                   />
+                  <div>
+                    <div className="font-display text-lg font-bold">{selectedMember.name}</div>
+                    <div className="font-body text-sm text-ink-muted">
+                      {session.parties.find((p) => p.id === selectedMember.partyId)?.name} ·{" "}
+                      {selectedMember.constituency}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="font-inscription text-xs uppercase tracking-wider text-ink-muted">
-                    忠诚度
-                  </span>
-                  <span className="font-mono">{selectedMember.loyalty}</span>
-                </div>
-                <div className="w-full bg-ink/10 rounded-full h-1.5">
-                  <div
-                    className="bg-commons-green h-1.5 rounded-full"
-                    style={{ width: `${selectedMember.loyalty}%` }}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-1 mt-3">
-                  {selectedMember.traits.map((trait) => (
-                    <span
-                      key={trait}
-                      className="px-2 py-0.5 bg-gold/10 text-gold-dark text-xs font-inscription rounded-sm"
-                    >
-                      {trait}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-inscription text-xs uppercase tracking-wider text-ink-muted">
+                      口才
                     </span>
-                  ))}
+                    <span className="font-mono">{selectedMember.eloquence}</span>
+                  </div>
+                  <div className="w-full bg-ink/10 rounded-full h-1.5">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${selectedMember.eloquence}%` }}
+                      className="bg-gold h-1.5 rounded-full"
+                    />
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-inscription text-xs uppercase tracking-wider text-ink-muted">
+                      忠诚度
+                    </span>
+                    <span className="font-mono">{selectedMember.loyalty}</span>
+                  </div>
+                  <div className="w-full bg-ink/10 rounded-full h-1.5">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${selectedMember.loyalty}%` }}
+                      className="bg-commons-green h-1.5 rounded-full"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {selectedMember.traits.map((trait) => (
+                      <span
+                        key={trait}
+                        className="px-2 py-0.5 bg-gold/10 text-gold-dark text-xs font-inscription rounded-sm"
+                      >
+                        {trait}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

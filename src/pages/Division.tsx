@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, X, Minus, AlertCircle, Crown, Scale } from "lucide-react";
+import { Bell, Check, X, Minus, AlertCircle, Crown, Scale, Users } from "lucide-react";
 import { useSessionStore } from "@/store/sessionStore";
 import PageHeader from "@/components/PageHeader";
 import CountUp from "@/components/CountUp";
@@ -23,6 +23,20 @@ export default function Division() {
 
   const [threshold, setThreshold] = useState<"simple-majority" | "two-thirds">("simple-majority");
   const [showBell, setShowBell] = useState(false);
+  const [rollCallIdx, setRollCallIdx] = useState(0);
+
+  const activeMotion = session?.motions.find((m) => m.id === activeMotionId);
+
+  // Auto-advance roll call during tally phase
+  useEffect(() => {
+    if (division.phase !== "tally") {
+      setRollCallIdx(0);
+      return;
+    }
+    if (rollCallIdx >= (session?.parties.length || 0)) return;
+    const timer = setTimeout(() => setRollCallIdx((i) => i + 1), 800);
+    return () => clearTimeout(timer);
+  }, [division.phase, rollCallIdx, session?.parties.length]);
 
   if (!session) {
     return (
@@ -31,8 +45,6 @@ export default function Division() {
       </div>
     );
   }
-
-  const activeMotion = session.motions.find((m) => m.id === activeMotionId);
 
   const handleStart = () => {
     if (!activeMotion) return;
@@ -58,6 +70,8 @@ export default function Division() {
     : division.phase === "tally" || division.phase === "result"
     ? Object.values(division.progressByParty).reduce((s, p) => s + p.abstain, 0)
     : 0;
+
+  const totalVotes = ayeCount + noCount + abstainCount;
 
   return (
     <div>
@@ -91,9 +105,7 @@ export default function Division() {
             {activeMotion ? (
               <>
                 <p className="font-display font-bold text-lg mb-1">{activeMotion.title}</p>
-                <p className="font-body text-sm text-ink-muted mb-5">
-                  {activeMotion.description}
-                </p>
+                <p className="font-body text-sm text-ink-muted mb-5">{activeMotion.description}</p>
 
                 <div className="space-y-3">
                   <label className="font-inscription text-xs uppercase tracking-wider text-ink-muted">
@@ -125,6 +137,7 @@ export default function Division() {
                           style={{ backgroundColor: party.color }}
                         />
                         {party.name}
+                        <span className="font-mono text-[10px] text-ink-muted">({party.seats})</span>
                       </span>
                       <select
                         value={party.stance || "no"}
@@ -176,7 +189,11 @@ export default function Division() {
                   </button>
                 )}
                 {division.phase === "result" && (
-                  <button type="button" onClick={() => completeDivision(threshold)} className="btn-brass w-full">
+                  <button
+                    type="button"
+                    onClick={() => completeDivision(threshold)}
+                    className="btn-brass w-full"
+                  >
                     确认结果并归档
                   </button>
                 )}
@@ -190,10 +207,11 @@ export default function Division() {
 
         {/* Division visualization */}
         <div className="lg:col-span-2 space-y-5">
+          {/* Vote counters */}
           <div className="grid grid-cols-3 gap-4">
             <motion.div
               whileHover={{ y: -4 }}
-              className="card-parchment p-5 text-center border-b-4 border-commons-green"
+              className="card-parchment p-5 text-center border-b-4 border-commons-green relative overflow-hidden"
             >
               <Check className="w-6 h-6 mx-auto text-commons-green mb-2" />
               <div className="font-inscription text-xs tracking-widest uppercase text-ink-muted mb-1">
@@ -202,16 +220,19 @@ export default function Division() {
               <div className="font-display text-4xl font-bold text-commons-green">
                 {division.phase === "idle" && !activeMotion?.vote ? (
                   "—"
-                ) : activeMotion?.vote ? (
-                  <CountUp target={activeMotion.vote.aye} />
                 ) : (
                   <CountUp target={ayeCount} />
                 )}
               </div>
+              {totalVotes > 0 && (
+                <div className="font-mono text-[10px] text-ink-muted mt-1">
+                  {Math.round((ayeCount / totalVotes) * 100)}%
+                </div>
+              )}
             </motion.div>
             <motion.div
               whileHover={{ y: -4 }}
-              className="card-parchment p-5 text-center border-b-4 border-lords-red"
+              className="card-parchment p-5 text-center border-b-4 border-lords-red relative overflow-hidden"
             >
               <X className="w-6 h-6 mx-auto text-lords-red mb-2" />
               <div className="font-inscription text-xs tracking-widest uppercase text-ink-muted mb-1">
@@ -220,16 +241,19 @@ export default function Division() {
               <div className="font-display text-4xl font-bold text-lords-red">
                 {division.phase === "idle" && !activeMotion?.vote ? (
                   "—"
-                ) : activeMotion?.vote ? (
-                  <CountUp target={activeMotion.vote.no} />
                 ) : (
                   <CountUp target={noCount} />
                 )}
               </div>
+              {totalVotes > 0 && (
+                <div className="font-mono text-[10px] text-ink-muted mt-1">
+                  {Math.round((noCount / totalVotes) * 100)}%
+                </div>
+              )}
             </motion.div>
             <motion.div
               whileHover={{ y: -4 }}
-              className="card-parchment p-5 text-center border-b-4 border-gold"
+              className="card-parchment p-5 text-center border-b-4 border-gold relative overflow-hidden"
             >
               <Minus className="w-6 h-6 mx-auto text-gold mb-2" />
               <div className="font-inscription text-xs tracking-widest uppercase text-ink-muted mb-1">
@@ -238,12 +262,15 @@ export default function Division() {
               <div className="font-display text-4xl font-bold text-gold">
                 {division.phase === "idle" && !activeMotion?.vote ? (
                   "—"
-                ) : activeMotion?.vote ? (
-                  <CountUp target={activeMotion.vote.abstain} />
                 ) : (
                   <CountUp target={abstainCount} />
                 )}
               </div>
+              {totalVotes > 0 && (
+                <div className="font-mono text-[10px] text-ink-muted mt-1">
+                  {Math.round((abstainCount / totalVotes) * 100)}%
+                </div>
+              )}
             </motion.div>
           </div>
 
@@ -292,6 +319,106 @@ export default function Division() {
             </div>
           </div>
 
+          {/* Aye/No lobby visualization during voting */}
+          <AnimatePresence>
+            {(division.phase === "voting" || division.phase === "tally") && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="card-parchment p-5"
+              >
+                <h3 className="font-display font-bold mb-4 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  投票走廊
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Aye lobby */}
+                  <div className="bg-commons-green/5 border border-commons-green/20 rounded-sm p-4">
+                    <div className="font-inscription text-xs uppercase tracking-widest text-commons-green mb-2 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Aye Lobby
+                    </div>
+                    <div className="space-y-1">
+                      {session.parties.map((party) => {
+                        const counts = division.progressByParty[party.id] || { aye: 0, no: 0, abstain: 0 };
+                        return (
+                          <div key={party.id} className="flex items-center gap-2 text-xs">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: party.color }} />
+                            <span className="font-body flex-1">{party.abbreviation}</span>
+                            <span className="font-mono font-bold text-commons-green">{counts.aye}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* No lobby */}
+                  <div className="bg-lords-red/5 border border-lords-red/20 rounded-sm p-4">
+                    <div className="font-inscription text-xs uppercase tracking-widest text-lords-red mb-2 flex items-center gap-1">
+                      <X className="w-3 h-3" /> No Lobby
+                    </div>
+                    <div className="space-y-1">
+                      {session.parties.map((party) => {
+                        const counts = division.progressByParty[party.id] || { aye: 0, no: 0, abstain: 0 };
+                        return (
+                          <div key={party.id} className="flex items-center gap-2 text-xs">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: party.color }} />
+                            <span className="font-body flex-1">{party.abbreviation}</span>
+                            <span className="font-mono font-bold text-lords-red">{counts.no}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Roll call animation during tally */}
+          <AnimatePresence>
+            {division.phase === "tally" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="card-parchment p-5"
+              >
+                <h3 className="font-display font-bold mb-4">逐党唱票</h3>
+                <div className="space-y-2">
+                  {session.parties.map((party, idx) => {
+                    const counts = division.progressByParty[party.id] || { aye: 0, no: 0, abstain: 0 };
+                    const revealed = idx < rollCallIdx;
+                    return (
+                      <motion.div
+                        key={party.id}
+                        initial={{ opacity: 0.3 }}
+                        animate={{ opacity: revealed ? 1 : 0.3 }}
+                        className="flex items-center gap-3 p-2 rounded-sm"
+                        style={{ backgroundColor: revealed ? party.color + "10" : "transparent" }}
+                      >
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: party.color }} />
+                        <span className="font-body text-sm flex-1">{party.name}</span>
+                        {revealed ? (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="flex items-center gap-3 font-mono text-sm"
+                          >
+                            <span className="text-commons-green">Aye {counts.aye}</span>
+                            <span className="text-lords-red">No {counts.no}</span>
+                            <span className="text-gold">Ab {counts.abstain}</span>
+                          </motion.div>
+                        ) : (
+                          <span className="font-inscription text-xs text-ink-muted">等待唱票...</span>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Result card */}
           <AnimatePresence>
             {activeMotion?.vote && (
@@ -301,7 +428,10 @@ export default function Division() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="card-parchment p-6 text-center relative overflow-hidden"
               >
-                <div
+                <motion.div
+                  initial={{ scale: 0, rotate: -20 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 12, delay: 0.1 }}
                   className={[
                     "inline-flex items-center gap-2 px-5 py-2.5 rounded-sm font-inscription text-lg tracking-[0.15em] uppercase mb-3",
                     activeMotion.vote.passed
@@ -311,14 +441,14 @@ export default function Division() {
                 >
                   {activeMotion.vote.passed ? (
                     <>
-                      <Check className="w-5 h-5" /> 通过
+                      <Check className="w-5 h-5" /> 议案通过
                     </>
                   ) : (
                     <>
-                      <X className="w-5 h-5" /> 否决
+                      <X className="w-5 h-5" /> 议案否决
                     </>
                   )}
-                </div>
+                </motion.div>
                 <p className="font-body text-ink-muted">
                   {activeMotion.title} 最终以 Aye {activeMotion.vote.aye} 票、No{" "}
                   {activeMotion.vote.no} 票、弃权 {activeMotion.vote.abstain} 票的结果
@@ -326,7 +456,7 @@ export default function Division() {
                 </p>
                 <motion.div
                   initial={{ opacity: 0, scale: 2, rotate: -10 }}
-                  animate={{ opacity: 0.08, scale: 1, rotate: -6 }}
+                  animate={{ opacity: 0.06, scale: 1, rotate: -6 }}
                   transition={{ delay: 0.2, duration: 0.5 }}
                   className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
                 >

@@ -259,6 +259,51 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
       { targetType: "party", targetId: "libdem", delta: 3 },
     ],
   },
+  {
+    id: "by-election-shock",
+    title: "补选爆冷",
+    description:
+      "执政党在一个传统安全席位补选中意外落败，党内要求反思政策方向。",
+    probability: 0.08,
+    impacts: [
+      { targetType: "opinion", delta: -4 },
+      { targetType: "party", targetId: "conservative", delta: -7 },
+      { targetType: "party", targetId: "labour", delta: 5 },
+    ],
+  },
+  {
+    id: "inflation-spike",
+    title: "通胀数据飙升",
+    description:
+      "CPI 同比上涨超预期，央行暗示加息，政府财政计划面临压力。",
+    probability: 0.09,
+    impacts: [
+      { targetType: "opinion", delta: -5 },
+      { targetType: "party", targetId: "conservative", delta: -4 },
+    ],
+  },
+  {
+    id: "diplomatic-breakthrough",
+    title: "外交突破",
+    description:
+      "英国与主要贸易伙伴达成自由贸易协定，政府支持率显著回升。",
+    probability: 0.07,
+    impacts: [
+      { targetType: "opinion", delta: 7 },
+      { targetType: "party", targetId: "conservative", delta: 5 },
+    ],
+  },
+  {
+    id: "frontbench-reshuffle",
+    title: "内阁改组",
+    description:
+      "首相进行内阁改组，更换多名大臣以回应批评，但引发党内不满。",
+    probability: 0.06,
+    impacts: [
+      { targetType: "opinion", delta: 2 },
+      { targetType: "party", targetId: "conservative", delta: -3 },
+    ],
+  },
 ];
 
 export const SPEECH_TEMPLATES: Record<string, string[]> = {
